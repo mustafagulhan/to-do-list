@@ -4,7 +4,6 @@ import TodoList from './components/TodoList'
 import TodoStats from './components/TodoStats'
 import SearchBar from './components/SearchBar'
 import { translations } from './locales/translations'
-import './App.css'
 
 function App() {
   const [todos, setTodos] = useState(() => {
@@ -200,11 +199,15 @@ function App() {
       todo.id === id 
         ? { 
             ...todo, 
-            text: newText, 
-            priority: newPriority, 
-            dueDate: newDueDate,
-            subtasks: newSubtasks || todo.subtasks,
-            tags: newTags || todo.tags
+            text: newText.trim(),
+            priority: newPriority || 'normal',
+            dueDate: newDueDate || null,
+            subtasks: Array.isArray(newSubtasks) ? newSubtasks.map(st => ({
+              id: st.id || Date.now() + Math.random(),
+              text: typeof st === 'string' ? st : (st.text || '').trim(),
+              completed: Boolean(st.completed)
+            })) : [],
+            tags: Array.isArray(newTags) ? [...new Set(newTags.map(tag => tag.trim()))] : []
           }
         : todo
     ));

@@ -4,6 +4,7 @@ export const translations = {
     tasksCompleted: 'görev tamamlandı',
     addTask: 'Yeni görev ekle...',
     add: 'Ekle',
+    confirmDelete: 'Bu görevi silmek istediğinizden emin misiniz?',
     priority: {
       low: 'Düşük',
       normal: 'Normal',
@@ -54,6 +55,7 @@ export const translations = {
     tasksCompleted: 'tasks completed',
     addTask: 'Add new task...',
     add: 'Add',
+    confirmDelete: 'Are you sure you want to delete this task?',
     priority: {
       low: 'Low',
       normal: 'Normal',

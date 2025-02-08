@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const TodoList = ({ todos, toggleTodo, deleteTodo, editTodo, editingTodo, setEditingTodo, isDarkMode, t }) => {
   const [expandedTodos, setExpandedTodos] = useState(new Set());
@@ -11,7 +11,35 @@ const TodoList = ({ todos, toggleTodo, deleteTodo, editTodo, editingTodo, setEdi
   const [newSubtask, setNewSubtask] = useState('');
   const [editTags, setEditTags] = useState([]);
   const [newTag, setNewTag] = useState('');
-  const menuRef = useRef(null);
+  const menuRefs = useRef({});
+
+  useEffect(() => {
+    todos.forEach(todo => {
+      if (!menuRefs.current[todo.id]) {
+        menuRefs.current[todo.id] = React.createRef();
+      }
+    });
+  }, [todos]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const openMenuIds = Array.from(openMenus);
+      openMenuIds.forEach(todoId => {
+        if (menuRefs.current[todoId]?.current && !menuRefs.current[todoId].current.contains(event.target)) {
+          setOpenMenus(prev => {
+            const newMenus = new Set(prev);
+            newMenus.delete(todoId);
+            return newMenus;
+          });
+        }
+      });
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openMenus]);
 
   useEffect(() => {
     if (editingTodo) {
@@ -23,62 +51,75 @@ const TodoList = ({ todos, toggleTodo, deleteTodo, editTodo, editingTodo, setEdi
     }
   }, [editingTodo]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setOpenMenus(new Set());
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
   const handleEdit = (e) => {
     e.preventDefault();
-    if (!editText.trim()) return;
+    if (!editText.trim() || !editingTodo) return;
     
+    const updatedSubtasks = Array.isArray(editSubtasks) ? editSubtasks.map(st => ({
+      id: st.id || Date.now() + Math.random(),
+      text: typeof st === 'string' ? st.trim() : (st.text || '').trim(),
+      completed: Boolean(st.completed)
+    })) : [];
+
+    const updatedTags = Array.isArray(editTags) ? [...new Set(editTags.map(tag => tag.trim()))] : [];
+
     editTodo(
       editingTodo.id, 
-      editText, 
-      editPriority, 
-      editDueDate, 
-      editSubtasks,
-      editTags
+      editText.trim(), 
+      editPriority || 'normal', 
+      editDueDate || null, 
+      updatedSubtasks,
+      updatedTags
     );
+    
+    // Form alanlarını temizle
     setEditingTodo(null);
+    setEditText('');
+    setEditPriority('normal');
+    setEditDueDate('');
+    setEditSubtasks([]);
+    setEditTags([]);
+    setNewSubtask('');
+    setNewTag('');
   };
 
   const addEditSubtask = () => {
     if (!newSubtask.trim()) return;
-    setEditSubtasks([
-      ...editSubtasks,
-      {
-        id: Date.now() + Math.random(),
-        text: newSubtask,
-        completed: false
-      }
-    ]);
+    const newSubtaskItem = {
+      id: Date.now() + Math.random(),
+      text: newSubtask.trim(),
+      completed: false
+    };
+    setEditSubtasks(prev => Array.isArray(prev) ? [...prev, newSubtaskItem] : [newSubtaskItem]);
     setNewSubtask('');
   };
 
   const removeEditSubtask = (subtaskId) => {
-    setEditSubtasks(editSubtasks.filter(st => st.id !== subtaskId));
+    setEditSubtasks(prev => 
+      Array.isArray(prev) ? prev.filter(st => st.id !== subtaskId) : []
+    );
   };
 
   const addEditTag = () => {
     if (!newTag.trim()) return;
-    const formattedTag = newTag.toLowerCase().replace(/\s+/g, '-');
+    const formattedTag = newTag.toLowerCase().replace(/\s+/g, '-').trim();
     if (!editTags.includes(formattedTag)) {
-      setEditTags([...editTags, formattedTag]);
+      setEditTags(prev => Array.isArray(prev) ? [...prev, formattedTag] : [formattedTag]);
     }
     setNewTag('');
   };
 
   const removeEditTag = (tag) => {
-    setEditTags(editTags.filter(t => t !== tag));
+    setEditTags(prev => 
+      Array.isArray(prev) ? prev.filter(t => t !== tag) : []
+    );
+  };
+
+  const handleDelete = (todoId) => {
+    if (window.confirm(t.confirmDelete)) {
+      deleteTodo(todoId);
+      setOpenMenus(new Set());
+    }
   };
 
   if (todos.length === 0) {
@@ -124,14 +165,16 @@ const TodoList = ({ todos, toggleTodo, deleteTodo, editTodo, editingTodo, setEdi
   };
 
   const toggleMenu = (todoId) => {
-    const newOpenMenus = new Set(openMenus);
-    if (newOpenMenus.has(todoId)) {
-      newOpenMenus.delete(todoId);
-    } else {
-      newOpenMenus.clear(); // Diğer açık menüleri kapat
-      newOpenMenus.add(todoId);
-    }
-    setOpenMenus(newOpenMenus);
+    setOpenMenus(prev => {
+      const newMenus = new Set(prev);
+      if (newMenus.has(todoId)) {
+        newMenus.delete(todoId);
+      } else {
+        newMenus.clear();
+        newMenus.add(todoId);
+      }
+      return newMenus;
+    });
   };
 
   const toggleSubtask = (todoId, subtaskId) => {
@@ -255,7 +298,7 @@ const TodoList = ({ todos, toggleTodo, deleteTodo, editTodo, editingTodo, setEdi
                   </svg>
                 </button>
               )}
-              <div className="relative" ref={menuRef}>
+              <div className="relative" ref={menuRefs.current[todo.id]}>
                 <button
                   onClick={() => toggleMenu(todo.id)}
                   className={`p-1.5 rounded-md transition-all duration-200 ${
@@ -289,10 +332,7 @@ const TodoList = ({ todos, toggleTodo, deleteTodo, editTodo, editingTodo, setEdi
                       {t.edit}
                     </button>
                     <button
-                      onClick={() => {
-                        toggleMenu(todo.id);
-                        deleteTodo(todo.id);
-                      }}
+                      onClick={() => handleDelete(todo.id)}
                       className={`w-full px-4 py-1.5 text-left text-sm flex items-center gap-2 ${
                         isDarkMode
                           ? 'hover:bg-gray-700 text-red-400'
