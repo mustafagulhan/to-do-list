@@ -1,4 +1,4 @@
-# Todo List Application
+# Todo List Application.
 
 A modern, feature-rich todo list application built with React and Tailwind CSS.
 
